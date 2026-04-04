@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useContext } from "react";
 import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { socket } from "../context/SocketContext";
-import api from "../api/api";
+import api, { assetUrl } from "../api/api";
 import AudioRecorder from "../components/AudioRecorder";
 import AudioMessage from "../components/AudioMessage";
 import VideoCall from "../components/VideoCall";
@@ -240,7 +240,7 @@ export default function Chat() {
                     <p className="msg-text">{m.translatedContent || m.content}</p>
                   )}
                   {m.type === "AUDIO" && (
-                    <AudioMessage src={`http://localhost:5000/${m.content}`} />
+                    <AudioMessage src={assetUrl(m.content)} />
                   )}
                   <div className="msg-time">
                     {new Date(m.createdAt || Date.now()).toLocaleTimeString([], {

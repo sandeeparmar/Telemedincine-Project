@@ -19,8 +19,8 @@ export const createRoom = async (req, res) => {
     // Only allow participants (doctor or patient) to create/access their own room
     const requesterId = req.user.id;
     const isParticipant =
-      String(requesterId) === String(doctorId) ||
-      String(requesterId) === String(patientId);
+    String(requesterId) === String(doctorId) ||
+    String(requesterId) === String(patientId);
 
     if (!isParticipant && req.user.role !== "ADMIN") {
       return res.status(403).json({ message: "Access denied" });

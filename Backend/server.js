@@ -19,10 +19,39 @@ connectDB(); // function call for an database connection
 
 const app = express();
 
-app.use(cors({
-  origin: "http://localhost:5173",
-  credentials: true
-}));
+const defaultOrigins = [
+  "https://mediconnect-eta-coral.vercel.app",
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+];
+const extraOrigins = (process.env.CORS_ORIGINS || "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+const allowedOrigins = new Set([...defaultOrigins, ...extraOrigins]);
+
+function allowOrigin(origin) {
+  if (!origin) return true;
+  if (allowedOrigins.has(origin)) return true;
+  return /^http:\/\/192\.168\.\d{1,3}\.\d{1,3}:5173$/.test(origin);
+}
+
+app.use((req, res, next) => {
+  if (req.headers["access-control-request-private-network"] === "true") {
+    res.setHeader("Access-Control-Allow-Private-Network", "true");
+  }
+  next();
+});
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (allowOrigin(origin)) callback(null, true);
+      else callback(null, false);
+    },
+    credentials: true,
+  })
+);
 
 app.use(express.json());
 app.use(cookieParser());
@@ -31,10 +60,13 @@ const server = createServer(app); // create an http server
 
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173",
+    origin(origin, callback) {
+      if (allowOrigin(origin)) callback(null, true);
+      else callback(null, false);
+    },
     credentials: true,
-    methods: ["GET", "POST"]
-  }
+    methods: ["GET", "POST"],
+  },
 });
 
 app.set("io", io);
@@ -100,6 +132,18 @@ app.use("/api/doctors", doctorRoutes);
 app.use("/api/idm", idmRoutes);
 app.use("/api/odm", odmRoutes);
 
-server.listen(process.env.PORT, () => {
-  console.log(`Server is running on port ${process.env.PORT}`);
-});
+const port = Number(process.env.PORT) || 5000;
+server
+  .listen(port, () => {
+    console.log(`Server is running on port ${port}`);
+  })
+  .on("error", (err) => {
+    if (err.code === "EADDRINUSE") {
+      console.error(
+        `Port ${port} is already in use. Close the other server or run: netstat -ano | findstr :${port} then taskkill /PID <pid> /F`
+      );
+    } else {
+      console.error(err);
+    }
+    process.exit(1);
+  });

@@ -19,43 +19,20 @@ export const register = async (req, res) => {
 
   try {
     const existing = await User.findOne({ email });
-
     if (existing) {
       return res
         .status(409)
         .json({ message: "This email is already registered. Please log in." });
     }
-
     const hashedPassword = await bcrypt.hash(password, 10);
-    role = role.toUpperCase();
-
-    // Encode full registration data in a short-lived token.
-    const token = jwt.sign(
-      {
-        name,
-        email,
-        phone,
-        hashedPassword,
-        role,
-        preferredLanguage,
-        specialization,
-        consultationTime
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: "30m" }
-    );
+    role = (role || "PATIENT").toUpperCase();
+    const token = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: "30m" });
 
     const verificationLink = `http://localhost:5000/api/auth/verify-email/${token}`;
 
     const subject = "Verify Your Email";
-    const text = `Hello ${name},
-
-Please verify your email address to activate your account.
-Open this link in your browser:
-${verificationLink}
-
-If you did not create an account, you can ignore this email.`;
-
+    const text = `Hello ${name}, Please verify your email address to activate your account. Open this link in your browser:${verificationLink}
+    If you did not create an account, you can ignore this email.`;
     const html = `
       <p>Hello ${name},</p>
       <p>Please verify your email address to activate your account.</p>
@@ -70,12 +47,30 @@ If you did not create an account, you can ignore this email.`;
     `;
 
     const emailInfo = await sendEmail(email, subject, text, html);
+    
     if (!emailInfo) {
       return res
         .status(500)
         .json({ message: "Failed to send verification email. Please try again." });
     }
 
+    const user = await User.create({
+      name,
+      email,
+      phone,
+      password: hashedPassword,
+      role,
+      preferredLanguage,
+      isEmailVerified: false
+    });
+
+    if (role === "DOCTOR") {
+      await Doctor.create({
+        userId: user._id,
+        specialization: specialization || "General",
+        consultationTime: consultationTime || 15
+      });
+    }
     res.status(201).json({
       message:
         "Verification email sent. Please check your inbox to complete registration."
@@ -89,41 +84,43 @@ If you did not create an account, you can ignore this email.`;
 };
 
 export const login = async (req, res) => {
-  
-  const { email, password } = req.body;
-  
-  if (!validator.isEmail(email)) {
-  return res.status(400).json({ message: "Email must be valid" });
+  try {
+    const { email, password } = req.body;
+
+    if (!validator.isEmail(email || "")) {
+      return res.status(400).json({ message: "Email must be valid" });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) return res.status(400).json({ message: "Invalid Credentials" });
+
+    if (user.isEmailVerified === false) {
+      return res
+        .status(403)
+        .json({ message: "Please verify your email before logging in." });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(400).json({ message: "Invalid Credentials" });
+
+    const token = jwt.sign(
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" }
+    );
+
+    res.cookie("token", token, {
+      httpOnly: true,
+      sameSite: "strict",
+      maxAge: 24 * 60 * 60 * 1000
+    });
+
+    res.json({ success: true, user: { id: user._id, name: user.name, role: user.role } });
+  } catch (err) {
+    console.error("Login error:", err.message);
+    res.status(500).json({ message: "Internal server error" });
   }
-
-
-  const user = await User.findOne({ email });
-  
-  if (!user) return res.status(400).json({ message: "Invalid Credentials" });
-
-  if (user.isEmailVerified === false) {
-    return res
-      .status(403)
-      .json({ message: "Please verify your email before logging in." });
-  }
-
-  const isMatch = await bcrypt.compare(password, user.password);
-
-  if (!isMatch) return res.status(400).json({ message: "Invalid Credentials" });
-
-  const token = jwt.sign(
-    { id: user._id, role: user.role },
-    process.env.JWT_SECRET,
-    { expiresIn: "1d" }
-  );
-
-  res.cookie('token', token, {
-    httpOnly: true,
-    sameSite: 'strict',
-    maxAge: 60 * 60 * 1000
-  });
-
-  res.json({ success: true, user: { id: user._id, name: user.name, role: user.role } });
 };
 
 export const verifyEmail = async (req, res) => {
@@ -136,51 +133,26 @@ export const verifyEmail = async (req, res) => {
       return res.status(400).send("Invalid verification link.");
     }
 
-    const {
-      name,
-      email,
-      phone,
-      hashedPassword,
-      role,
-      preferredLanguage,
-      specialization,
-      consultationTime
-    } = decoded;
+    const email = decoded.email;
+    const user = await User.findOne({ email });
 
-    let user = await User.findOne({ email });
+    if (!user) {
+      return res
+        .status(400)
+        .send("No account found for this verification link. Please register again.");
+    }
 
-    if (user) {
-      // If user already exists, just mark verified (for older accounts)
-      if (user.isEmailVerified === false) {
-        user.isEmailVerified = true;
-        await user.save();
-      }
+    if (user.isEmailVerified) {
       return res.send(
         "Your email is already verified. You can now close this window and log in to your account."
       );
     }
 
-    // Create user only after successful email verification
-    user = await User.create({
-      name,
-      email,
-      phone,
-      password: hashedPassword,
-      role,
-      preferredLanguage,
-      isEmailVerified: true
-    });
-
-    if (role === "DOCTOR") {
-      await Doctor.create({
-        userId: user._id,
-        specialization: specialization || "General",
-        consultationTime: consultationTime || 15
-      });
-    }
+    user.isEmailVerified = true;
+    await user.save();
 
     return res.send(
-      "Email verified and account created successfully. You can now close this window and log in to your account."
+      "Email verified successfully. You can now close this window and log in to your account."
     );
   } catch (err) {
     if (err.name === "TokenExpiredError") {

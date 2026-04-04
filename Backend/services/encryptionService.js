@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import 'dotenv/config';
 
-let key;
+let key; // AES 256
 try {
   const envKey = process.env.ENCRYPTION_KEY;
   if (envKey && envKey.length === 64) {

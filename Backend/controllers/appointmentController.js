@@ -13,7 +13,7 @@ export const bookAppointment = async (req, res) => {
       message: "Only patients can book appointments"
     });
   }
-  const { doctorId, date, timeSlot, reason } = req.body; // Added reason
+  const { doctorId, date, timeSlot, reason } = req.body; 
 
   if (!doctorId || !date || !timeSlot || !reason) {
     return res.status(400).json({
@@ -21,7 +21,6 @@ export const bookAppointment = async (req, res) => {
     });
   }
 
-  // Validate date and time are in the future and within daytime hours (6 AM–10 PM)
   const selectedDateTime = new Date(`${date}T${timeSlot}`);
 
   if (Number.isNaN(selectedDateTime.getTime())) {
@@ -84,8 +83,8 @@ export const bookAppointment = async (req, res) => {
     console.error("Failed to send booking email:", emailErr);
   }
 
-  // Emit Socket Event to Doctor
-  const io = req.app.get("io");
+  const io = req.app.get("io"); // retrieve the socket.io server object that was stored earlier 
+
   // We need to emit to the User ID of the doctor, not the Doctor Profile ID
   // We fetched 'doctor' above
   if (req.doctorUserObj) {
@@ -159,7 +158,7 @@ export const getPatientAppointments = async (req, res) => {
 export const updateStatus = async (req, res) => {
 
   const session = await mongoose.startSession();
-  session.startTransaction();
+  session.startTransaction(); 
   try {
     let { status } = req.body;
     status = status.toUpperCase();
@@ -189,9 +188,9 @@ export const updateStatus = async (req, res) => {
     }
 
     const oldQueueNumber = appointment.queueNumber;
-    const oldStatus = appointment.status; // Store old status before updating
-    appointment.status = status;
-    await appointment.save({ session });
+    const oldStatus = appointment.status; // old status before update
+    appointment.status = status; // update the status 
+    await appointment.save({ session }); // save inside the db 
 
 
     if (status === "COMPLETED" || (status === "CANCELLED" && ["BOOKED", "IN_PROGRESS", "PENDING"].includes(oldStatus))) {
@@ -243,6 +242,7 @@ export const updateStatus = async (req, res) => {
       } catch (emailErr) {
         console.error("Failed to send cancellation email:", emailErr);
       }
+
     }
 
     res.json({
