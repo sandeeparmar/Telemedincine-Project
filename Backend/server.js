@@ -4,6 +4,7 @@ import cors from "cors";
 import { createServer } from "http";
 import cookieParser from "cookie-parser";
 import { Server } from "socket.io";
+import { createAdapter } from "@socket.io/redis-adapter";
 
 import { connectDB } from "./config/db.js";
 import appointmentRoutes from "./routes/appointmentRoutes.js";
@@ -13,6 +14,9 @@ import chatRoutes from "./routes/chatRoutes.js";
 import doctorRoutes from "./routes/doctorRoutes.js";
 import idmRoutes from "./routes/idmRoutes.js";
 import odmRoutes from "./routes/odmRoutes.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
+import { createRedisClient } from "./config/redis.js";
+import { initializeNotificationSystem } from "./services/notificationService.js";
 
 dotenv.config(); // used for env file 
 connectDB(); // function call for an database connection 
@@ -71,6 +75,15 @@ const io = new Server(server, {
 
 app.set("io", io);
 
+if (process.env.REDIS_URL) {
+  const pubClient = createRedisClient();
+  const subClient = createRedisClient();
+  io.adapter(createAdapter(pubClient, subClient));
+  console.log("Socket.IO Redis adapter enabled");
+}
+
+initializeNotificationSystem(io);
+
 io.on("connection", (socket) => {
   console.log("User Connected", socket.id);
 
@@ -80,6 +93,10 @@ io.on("connection", (socket) => {
 
   socket.on("joinPatientRoom", (patientId) => {
     socket.join(patientId);
+  });
+
+  socket.on("joinUserRoom", (userId) => {
+    socket.join(userId);
   });
 
 
@@ -131,6 +148,7 @@ app.use("/uploads", express.static("uploads"));
 app.use("/api/doctors", doctorRoutes);
 app.use("/api/idm", idmRoutes);
 app.use("/api/odm", odmRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 const port = Number(process.env.PORT) || 5000;
 server

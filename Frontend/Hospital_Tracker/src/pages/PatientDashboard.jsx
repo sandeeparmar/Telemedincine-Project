@@ -35,18 +35,22 @@ export default function PatientDashboard() {
   useEffect(() => {
     if (user?.id) {
       socket.emit("joinPatientRoom", String(user.id));
-      socket.on("appointmentConfirmed", (data) => {
-        setNotification(data.message);
+      socket.emit("joinUserRoom", String(user.id));
+
+      const onNotification = (data) => {
+        setNotification(data.message || data.title);
+        showToast(data.message || data.title || "You have a new notification", "success");
         loadAppointments(); // Refresh the list automatically
-        // Auto-hide notification after 10 seconds
         setTimeout(() => setNotification(null), 10000);
-      });
+      };
+
+      socket.on("notification", onNotification);
     }
 
     return () => {
-      socket.off("appointmentConfirmed");
+      socket.off("notification");
     };
-  }, [user]);
+  }, [user, showToast]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });

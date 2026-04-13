@@ -5,6 +5,16 @@ import { User } from "../models/User.js";
 import { calculateWaitingTime } from "../utils/waitingTime.js";
 import { idmMetric } from "../models/IDMMetric.js";
 import { sendEmail } from "../services/emailService.js";
+import { enqueueNotification } from "../services/notificationService.js";
+
+async function queueNotification(payload) {
+  try {
+    await enqueueNotification(payload);
+  } catch (error) {
+    console.log(error);
+    console.error("Notification enqueue failed:", error.message);
+  }
+}
 
 export const bookAppointment = async (req, res) => {
 
@@ -71,10 +81,12 @@ export const bookAppointment = async (req, res) => {
     queueNumber: count + 1
   });
 
+  let doctorUserId = null;
   // Send email to Doctor
   try {
     const doctor = await Doctor.findById(doctorId).populate("userId");
     if (doctor && doctor.userId && doctor.userId.email) {
+      doctorUserId = doctor.userId._id;
       const subject = "New Appointment Request";
       const text = `Hello Dr. ${doctor.userId.name},\n\nYou have a new appointment request from a patient.\n\nDate: ${date}\nTime Slot: ${timeSlot}\nReason: ${reason}\n\nPlease check your dashboard to confirm.`;
       await sendEmail(doctor.userId.email, subject, text);
@@ -83,19 +95,25 @@ export const bookAppointment = async (req, res) => {
     console.error("Failed to send booking email:", emailErr);
   }
 
-  const io = req.app.get("io"); // retrieve the socket.io server object that was stored earlier 
+  if (!doctorUserId) {
+    const doctor = await Doctor.findById(doctorId).select("userId");
+    doctorUserId = doctor?.userId;
+  }
 
-  // We need to emit to the User ID of the doctor, not the Doctor Profile ID
-  // We fetched 'doctor' above
-  if (req.doctorUserObj) {
-    io.to(String(req.doctorUserObj._id)).emit("queueUpdated");
-  } else {
-    // Fallback if doctor object wasn't captured in try-catch block scope
-    // Let's refactor to ensure we have access to doctor.userId
-    const doctor = await Doctor.findById(doctorId);
-    if (doctor) {
-      io.to(String(doctor.userId)).emit("queueUpdated");
-    }
+  if (doctorUserId) {
+    await queueNotification({
+      userId: doctorUserId,
+      type: "APPOINTMENT_REQUESTED",
+      title: "New appointment request",
+      message: `A patient requested an appointment on ${date} at ${timeSlot}.`,
+      data: {
+        appointmentId: appointment._id,
+        doctorId,
+        date,
+        timeSlot,
+      },
+      channels: { socket: true, email: false },
+    });
   }
 
   res.status(201).json(appointment);
@@ -224,11 +242,22 @@ export const updateStatus = async (req, res) => {
     await session.commitTransaction();
     session.endSession();
 
-    const io = req.app.get("io");
-
-    io.to(String(appointment.doctorId)).emit("queueUpdated", {
-      doctorId: appointment.doctorId
-    });
+    const doctorProfile = await Doctor.findById(appointment.doctorId).select("userId").lean();
+    if (doctorProfile?.userId) {
+      await queueNotification({
+        userId: doctorProfile.userId,
+        type: "QUEUE_UPDATED",
+        title: "Queue updated",
+        message: `Appointment queue changed for ${appointment.date} at ${appointment.timeSlot}.`,
+        data: {
+          appointmentId: appointment._id,
+          date: appointment.date,
+          timeSlot: appointment.timeSlot,
+          status,
+        },
+        channels: { socket: true, email: false },
+      });
+    }
 
     // Send Email if Cancelled
     if (status === "CANCELLED") {
@@ -307,16 +336,24 @@ export const confirmAppointment = async (req, res) => {
     console.error("Failed to send confirmation email:", emailErr);
   }
 
-  // Emit Socket Notification to Patient
+  // Queue production notification to patient (socket + optional email channel)
   try {
-    const io = req.app.get("io");
     if (appointment.patientId && appointment.patientId._id) {
-      io.to(String(appointment.patientId._id)).emit("appointmentConfirmed", {
-        message: `Your appointment on ${appointment.date} at ${appointment.timeSlot} has been confirmed. Please join the chat at your allocated time.`
+      await queueNotification({
+        userId: appointment.patientId._id,
+        type: "APPOINTMENT_CONFIRMED",
+        title: "Appointment confirmed",
+        message: `Your appointment on ${appointment.date} at ${appointment.timeSlot} has been confirmed.`,
+        data: {
+          appointmentId: appointment._id,
+          date: appointment.date,
+          timeSlot: appointment.timeSlot,
+        },
+        channels: { socket: true, email: true },
       });
     }
-  } catch (socketErr) {
-    console.error("Failed to emit confirmation socket event:", socketErr);
+  } catch (notificationErr) {
+    console.error("Failed to queue confirmation notification:", notificationErr);
   }
 
   res.json({
@@ -380,19 +417,29 @@ export const denyAppointment = async (req, res) => {
     await session.commitTransaction();
     session.endSession();
 
-    // Emit Socket Event to Doctor
-    const io = req.app.get("io");
-    io.to(String(appointment.doctorId)).emit("queueUpdated", {
-      doctorId: appointment.doctorId
-    });
+    const doctor = await Doctor.findById(appointment.doctorId).select("userId").lean();
+    if (doctor?.userId) {
+      await queueNotification({
+        userId: doctor.userId,
+        type: "APPOINTMENT_CANCELLED_BY_PATIENT",
+        title: "Appointment cancelled",
+        message: `A patient cancelled the appointment for ${appointment.date} at ${appointment.timeSlot}.`,
+        data: {
+          appointmentId: appointment._id,
+          date: appointment.date,
+          timeSlot: appointment.timeSlot,
+        },
+        channels: { socket: true, email: false },
+      });
+    }
 
     // Send Email to Doctor
     try {
-      const doctor = await Doctor.findById(appointment.doctorId).populate("userId");
-      if (doctor && doctor.userId && doctor.userId.email) {
+      const doctorForEmail = await Doctor.findById(appointment.doctorId).populate("userId");
+      if (doctorForEmail && doctorForEmail.userId && doctorForEmail.userId.email) {
         const subject = "Appointment Denied by Patient";
-        const text = `Hello Dr. ${doctor.userId.name},\n\nThe patient has denied their appointment scheduled for ${appointment.date} at ${appointment.timeSlot}.\n\nPlease check your dashboard to see updated queue.`;
-        await sendEmail(doctor.userId.email, subject, text);
+        const text = `Hello Dr. ${doctorForEmail.userId.name},\n\nThe patient has denied their appointment scheduled for ${appointment.date} at ${appointment.timeSlot}.\n\nPlease check your dashboard to see updated queue.`;
+        await sendEmail(doctorForEmail.userId.email, subject, text);
       }
     } catch (emailErr) {
       console.error("Failed to send denial email to doctor:", emailErr);
