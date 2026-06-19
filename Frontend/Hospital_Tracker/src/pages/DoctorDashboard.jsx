@@ -29,18 +29,9 @@ export default function DoctorDashboard() {
     const room = user?.id ? String(user.id) : "doctor";
     socket.emit("joinDoctorRoom", room);
     socket.emit("joinUserRoom", room);
-    socket.on("queueUpdated", () => { loadQueue(); });
-    socket.on("notification", (data) => {
-      showToast(data.message || data.title || "New update received", "info");
-      if (data.type === "QUEUE_UPDATED" || data.type === "APPOINTMENT_REQUESTED" || data.type === "APPOINTMENT_CANCELLED_BY_PATIENT") {
-        loadQueue();
-      }
-    });
     return () => {
-      socket.off("queueUpdated");
-      socket.off("notification");
     };
-  }, [user, showToast]);
+  }, [user]);
 
   const updateStatus = async (id, status) => {
     try {

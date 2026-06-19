@@ -9,8 +9,7 @@ import {
   getMessages ,
   sendTextMessage ,
   sendAudioMessage,
-  getConversationHistory ,
-  generateConversationSummary
+  getConversationHistory
 }  from "../controllers/chatController.js" ;
 
 router.post("/room" , verifyToken , createRoom) ;
@@ -22,8 +21,6 @@ router.post("/text" ,verifyToken , sendTextMessage);
 router.post("/audio" , verifyToken , upload.single("audio") , sendAudioMessage) ;
 
 router.get("/history/:roomId" , verifyToken , getConversationHistory) ;
-
-router.post("/summary/:roomId", verifyToken, generateConversationSummary);
 
 
 export default router ;

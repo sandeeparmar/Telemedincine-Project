@@ -1,13 +1,26 @@
 import { createContext } from "react";
 import { io } from "socket.io-client";
 
-/** Dev: same origin + Vite proxy to backend. Prod: set VITE_SOCKET_URL if API is on another host */
-const socketUrl =
-  import.meta.env.VITE_SOCKET_URL ||
-  (import.meta.env.DEV ? undefined : import.meta.env.VITE_API_BASE_URL?.replace(/\/api\/?$/i, "") || undefined);
+function resolveSocketUrl() {
+  if (import.meta.env.VITE_SOCKET_URL) {
+    return import.meta.env.VITE_SOCKET_URL;
+  }
+  if (import.meta.env.DEV) {
+    return undefined;
+  }
+  const apiBase = import.meta.env.VITE_API_BASE_URL?.replace(/\/api\/?$/i, "");
+  if (apiBase) {
+    return apiBase;
+  }
+  if (typeof window !== "undefined") {
+    return window.location.origin;
+  }
+  return undefined;
+}
 
-export const socket = io(socketUrl, {
+export const socket = io(resolveSocketUrl(), {
   withCredentials: true,
+  transports: ["websocket", "polling"],
 });
 
 export const SocketContext = createContext(socket);

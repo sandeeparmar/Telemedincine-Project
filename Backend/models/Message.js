@@ -25,9 +25,6 @@ const messageSchema = new mongoose.Schema( {
       type : Boolean ,
       default : false 
    } , 
-   originalLanguage : String ,
-   translatedLanguage : String ,
-   translatedContent : String , 
    seen : {
     type : Boolean , 
     default : false 

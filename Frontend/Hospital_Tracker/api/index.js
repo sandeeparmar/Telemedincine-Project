@@ -1,10 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
-import { createServer } from "http";
 import cookieParser from "cookie-parser";
-import { Server } from "socket.io";
-import { createAdapter } from "@socket.io/redis-adapter";
 
 import { connectDB } from "../server/config/db.js";
 import appointmentRoutes from "../server/routes/appointmentRoutes.js";
@@ -15,8 +12,6 @@ import doctorRoutes from "../server/routes/doctorRoutes.js";
 import idmRoutes from "../server/routes/idmRoutes.js";
 import odmRoutes from "../server/routes/odmRoutes.js";
 import notificationRoutes from "../server/routes/notificationRoutes.js";
-import { createRedisClient } from "../server/config/redis.js";
-import { initializeNotificationSystem } from "../server/services/notificationService.js";
 
 dotenv.config();
 connectDB();
@@ -60,7 +55,6 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 
-// API Routes
 app.use("/api/appointment", appointmentRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
@@ -70,7 +64,6 @@ app.use("/api/idm", idmRoutes);
 app.use("/api/odm", odmRoutes);
 app.use("/api/notification", notificationRoutes);
 
-// Health check endpoint
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date() });
 });

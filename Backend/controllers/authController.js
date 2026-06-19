@@ -12,7 +12,6 @@ export const register = async (req, res) => {
     password,
     role,
     phone,
-    preferredLanguage,
     specialization,
     consultationTime
   } = req.body;
@@ -60,7 +59,6 @@ export const register = async (req, res) => {
       phone,
       password: hashedPassword,
       role,
-      preferredLanguage,
       isEmailVerified: false
     });
 

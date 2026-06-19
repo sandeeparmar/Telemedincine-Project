@@ -15,8 +15,7 @@ export const getUserProfile = async (req, res) => {
         name: user.name,
         email: user.email,
         phone: user.phone,
-        role: user.role,
-        preferredLanguage: user.preferredLanguage
+        role: user.role
       }
     });
   } catch (error) {
@@ -27,7 +26,7 @@ export const getUserProfile = async (req, res) => {
 
 export const updateUserProfile = async (req, res) => {
   try {
-    const { name, phone, preferredLanguage } = req.body;
+    const { name, phone } = req.body;
     
     if (!req.user.id) {
       return res.status(401).json({ message: "Unauthorized" });
@@ -37,7 +36,6 @@ export const updateUserProfile = async (req, res) => {
     const updateData = {};
     if (name) updateData.name = name;
     if (phone) updateData.phone = phone;
-    if (preferredLanguage) updateData.preferredLanguage = preferredLanguage;
 
     if (Object.keys(updateData).length === 0) {
       return res.status(400).json({ message: "No fields to update" });
@@ -61,8 +59,7 @@ export const updateUserProfile = async (req, res) => {
         name: user.name,
         email: user.email,
         phone: user.phone,
-        role: user.role,
-        preferredLanguage: user.preferredLanguage
+        role: user.role
       }
     });
   } catch (error) {

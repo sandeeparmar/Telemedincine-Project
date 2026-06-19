@@ -24,33 +24,10 @@ const userSchema = new mongoose.Schema({
       type : String ,
        enum : ["PATIENT" , "DOCTOR" , "ADMIN"] ,
        default : "PATIENT" ,
-    }, 
-    preferredLanguage : {
-      type : String ,
-      default :"en" 
     },
     isEmailVerified: {
       type: Boolean,
       default: false
-    },
-    notificationPreferences: {
-      appointmentReminders: {
-        type: Boolean,
-        default: true
-      },
-      emailNotifications: {
-        type: Boolean,
-        default: true
-      },
-      socketNotifications: {
-        type: Boolean,
-        default: true
-      },
-      reminderTiming: {
-        type: [String],
-        enum: ["15_MINS", "30_MINS", "1_HOUR"],
-        default: ["15_MINS", "30_MINS", "1_HOUR"]
-      }
     }
 }) ;
 

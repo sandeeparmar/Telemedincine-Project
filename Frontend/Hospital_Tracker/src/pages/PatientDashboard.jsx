@@ -14,7 +14,6 @@ export default function PatientDashboard() {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showAllAppointments, setShowAllAppointments] = useState(false);
-  const [notification, setNotification] = useState(null);
   const navigate = useNavigate();
   const { showToast } = useToast();
 
@@ -36,21 +35,11 @@ export default function PatientDashboard() {
     if (user?.id) {
       socket.emit("joinPatientRoom", String(user.id));
       socket.emit("joinUserRoom", String(user.id));
-
-      const onNotification = (data) => {
-        setNotification(data.message || data.title);
-        showToast(data.message || data.title || "You have a new notification", "success");
-        loadAppointments(); // Refresh the list automatically
-        setTimeout(() => setNotification(null), 10000);
-      };
-
-      socket.on("notification", onNotification);
     }
 
     return () => {
-      socket.off("notification");
     };
-  }, [user, showToast]);
+  }, [user]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });

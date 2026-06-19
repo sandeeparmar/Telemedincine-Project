@@ -67,16 +67,6 @@ export default function Chat() {
     }
   };
 
-  const generateSummary = async () => {
-    try {
-      const res = await api.post(`/chat/summary/${roomId}`);
-      showToast("Summary generated successfully", "success");
-      console.log("Conversation summary:", res.data.summary);
-    } catch (err) {
-      showToast("Failed to generate summary", "error");
-    }
-  };
-
   const handleCompleteConsultation = async () => {
     if (!appointmentId) return;
     try {
@@ -169,13 +159,6 @@ export default function Chat() {
                 </button>
               </>
             )}
-            <button onClick={generateSummary} className="btn-call btn-summary">
-              <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              Summary
-            </button>
           </div>
         </div>
 
@@ -237,7 +220,7 @@ export default function Chat() {
                 )}
                 <div className="msg-bubble">
                   {m.type === "TEXT" && (
-                    <p className="msg-text">{m.translatedContent || m.content}</p>
+                    <p className="msg-text">{m.content}</p>
                   )}
                   {m.type === "AUDIO" && (
                     <AudioMessage src={assetUrl(m.content)} />

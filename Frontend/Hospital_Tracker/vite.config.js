@@ -5,6 +5,7 @@ import { nodePolyfills } from 'vite-plugin-node-polyfills'
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: '/',
   plugins: [
     react(),
     tailwindcss(),
@@ -30,6 +31,6 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
-    target: 'esnext',
+    target: 'es2020',
   },
 })

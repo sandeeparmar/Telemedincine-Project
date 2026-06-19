@@ -11,7 +11,7 @@ export default function Register() {
     phone: "",
     password: "",
     role: "PATIENT",
-    preferredLanguage: "en",
+
     specialization: "",
     consultationTime: ""
   });
@@ -150,18 +150,6 @@ export default function Register() {
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold tracking-widest uppercase text-slate-500">Phone</label>
                 <input name="phone" type="tel" required placeholder="+91 98765 43210" value={formData.phone}
-                  onChange={handleChange}
-                  className={inputClass}
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-semibold tracking-widest uppercase text-slate-500">Language</label>
-                <input
-                  name="preferredLanguage"
-                  type="text"
-                  placeholder="en, hi…"
-                  value={formData.preferredLanguage}
                   onChange={handleChange}
                   className={inputClass}
                 />

@@ -1,11 +1,7 @@
 import { chatRoom } from "../models/ChatRoom.js";
 import { Message } from "../models/Message.js";
 import { User } from "../models/User.js";
-import { detectLanguage } from "../services/languageDetect.js";
-import { translateText } from "../services/translationService.js";
-import { encrypt, decrypt } from "../services/encryptionService.js"
-import { generateSummary } from "../services/summaryService.js";
-import { ConversationSummary } from "../models/ConversationSummary.js";
+import { encrypt, decrypt } from "../services/encryptionService.js";
 
 
 export const createRoom = async (req, res) => {
@@ -63,8 +59,7 @@ export const getMessages = async (req, res) => {
     // Decrypt messages before sending to frontend
     const decryptedMessages = messages.map(msg => ({
       ...msg._doc,
-      content: msg.type === "TEXT" ? decrypt(msg.content) : msg.content,
-      translatedContent: msg.type === "TEXT" && msg.translatedContent ? decrypt(msg.translatedContent) : msg.translatedContent
+      content: msg.type === "TEXT" ? decrypt(msg.content) : msg.content
     }));
 
     res.json(decryptedMessages);
@@ -99,33 +94,14 @@ export const sendTextMessage = async (req, res) => {
       return res.status(403).json({ message: "Access denied" });
     }
 
-    // sender._id === doctorId both match then patient will be receiver otherwise doctor will be receiver .
-    const receiverId = String(room.doctorId) === String(sender._id) ? room.patientId : room.doctorId;
-    
-    const receiver = await User.findById(receiverId); 
+    const encryptedContent = encrypt(req.body.text);
 
-    // Use sender's preferred language as fallback for detection
-    const senderPreferredLang = sender?.preferredLanguage || "en";
-    const detectedLang = await detectLanguage(req.body.text, senderPreferredLang);
-
-    const translated = await translateText(
-      req.body.text,
-      detectedLang,
-      receiver?.preferredLanguage || "en"
-    );
-
-    const encryptedOriginal = encrypt(req.body.text);
-    const encryptedTranslated = encrypt(translated);
-
-    const message = await Message.create({ // query
+    const message = await Message.create({
       roomId: room._id,
       senderId: sender._id,
       senderRole: sender.role,
       type: "TEXT",
-      content: encryptedOriginal,
-      translatedContent: encryptedTranslated,
-      originalLanguage: detectedLang,
-      translatedLanguage: receiver?.preferredLanguage || "en"
+      content: encryptedContent
     });
 
     // Populate sender details for the response
@@ -134,8 +110,7 @@ export const sendTextMessage = async (req, res) => {
     // Decrypt for the response and socket emission
     const outgoingMessage = {
       ...message._doc,
-      content: req.body.text,
-      translatedContent: translated
+      content: req.body.text
     };
 
     const io = req.app.get("io");
@@ -215,67 +190,5 @@ export const getConversationHistory = async (req, res) => {
   } catch (err) {
     console.error("Error fetching history:", err);
     res.status(500).json({ message: "Failed to fetch history" });
-  }
-};
-
-export const generateConversationSummary = async (req, res) => {
-  try {
-    const room = await chatRoom.findById(req.params.roomId);
-
-    if (!room) {
-      return res.status(404).json({ message: "Room not found" });
-    }
-
-    const requesterId = req.user.id;
-    const isParticipant =
-      String(requesterId) === String(room.doctorId) ||
-      String(requesterId) === String(room.patientId);
-
-    if (!isParticipant && req.user.role !== "ADMIN") {
-      return res.status(403).json({ message: "Access denied" });
-    }
-
-    const messages = await Message.find({
-      roomId: room._id
-    }).sort({ createdAt: 1 });
-
-    // Decrypt for summary generation
-    const plainText = messages.map(m => {
-      const content = m.type === "TEXT" ? decrypt(m.translatedContent || m.content) : "[Audio Message]";
-      return content;
-    }).join("\n");
-
-    const summary = await generateSummary(plainText);
-
-    await ConversationSummary.create({
-      roomId: room._id,
-      patientId: room.patientId,
-      doctorId: room.doctorId,
-      summary
-    });
-
-    if (summary.toLocaleLowerCase().includes("diabetes")) {
-      /*  
-       // Assuming DiseaseProgram model exists and is imported, though not seen in previous imports
-       // Commenting out to avoid reference error if not imported, or relying on auto-import if available
-       // Ideally should check if DiseaseProgram is imported.
-       // Previous file had it? No, it was using implicit global or missing import?
-       // Actually previous file accessed it in `generateConversationSummary` but didn't import it in `chatController.js` snippet I saw earlier (lines 1-8).
-       // Wait, I saw lines 1-128 of `chatController.js` earlier. It imported `chatRoom`, `Message`, `User`, `detectLanguage`... `ConversationSummary`.
-       // It did NOT import `DiseaseProgram`.
-       // So lines 114-124 in previous code would crash! 
-       // I will leave it commented out or fix import if I knew where it is.
-       // Safer to comment out the DiseaseProgram part or wrap in try-catch to not break summary.
-      */
-      // await DiseaseProgram.create({...}) 
-    }
-
-    res.json({
-      message: "Summary generated",
-      summary
-    });
-  } catch (err) {
-    console.error("Error generating summary:", err);
-    res.status(500).json({ message: "Failed to generate summary" });
   }
 };

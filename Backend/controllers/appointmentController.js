@@ -1,20 +1,10 @@
 import { Appointment } from "../models/Appointment.js";
-import { mongoose } from "mongoose";
+import mongoose from "mongoose";
 import { Doctor } from "../models/Doctor.js";
 import { User } from "../models/User.js";
 import { calculateWaitingTime } from "../utils/waitingTime.js";
 import { idmMetric } from "../models/IDMMetric.js";
 import { sendEmail } from "../services/emailService.js";
-import { enqueueNotification } from "../services/notificationService.js";
-
-async function queueNotification(payload) {
-  try {
-    await enqueueNotification(payload);
-  } catch (error) {
-    console.log(error);
-    console.error("Notification enqueue failed:", error.message);
-  }
-}
 
 export const bookAppointment = async (req, res) => {
 
@@ -100,21 +90,6 @@ export const bookAppointment = async (req, res) => {
     doctorUserId = doctor?.userId;
   }
 
-  if (doctorUserId) {
-    await queueNotification({
-      userId: doctorUserId,
-      type: "APPOINTMENT_REQUESTED",
-      title: "New appointment request",
-      message: `A patient requested an appointment on ${date} at ${timeSlot}.`,
-      data: {
-        appointmentId: appointment._id,
-        doctorId,
-        date,
-        timeSlot,
-      },
-      channels: { socket: true, email: false },
-    });
-  }
 
   res.status(201).json(appointment);
 };
@@ -242,22 +217,7 @@ export const updateStatus = async (req, res) => {
     await session.commitTransaction();
     session.endSession();
 
-    const doctorProfile = await Doctor.findById(appointment.doctorId).select("userId").lean();
-    if (doctorProfile?.userId) {
-      await queueNotification({
-        userId: doctorProfile.userId,
-        type: "QUEUE_UPDATED",
-        title: "Queue updated",
-        message: `Appointment queue changed for ${appointment.date} at ${appointment.timeSlot}.`,
-        data: {
-          appointmentId: appointment._id,
-          date: appointment.date,
-          timeSlot: appointment.timeSlot,
-          status,
-        },
-        channels: { socket: true, email: false },
-      });
-    }
+
 
     // Send Email if Cancelled
     if (status === "CANCELLED") {
@@ -336,25 +296,7 @@ export const confirmAppointment = async (req, res) => {
     console.error("Failed to send confirmation email:", emailErr);
   }
 
-  // Queue production notification to patient (socket + optional email channel)
-  try {
-    if (appointment.patientId && appointment.patientId._id) {
-      await queueNotification({
-        userId: appointment.patientId._id,
-        type: "APPOINTMENT_CONFIRMED",
-        title: "Appointment confirmed",
-        message: `Your appointment on ${appointment.date} at ${appointment.timeSlot} has been confirmed.`,
-        data: {
-          appointmentId: appointment._id,
-          date: appointment.date,
-          timeSlot: appointment.timeSlot,
-        },
-        channels: { socket: true, email: true },
-      });
-    }
-  } catch (notificationErr) {
-    console.error("Failed to queue confirmation notification:", notificationErr);
-  }
+
 
   res.json({
     message: "Appointment confirmed",
@@ -417,21 +359,7 @@ export const denyAppointment = async (req, res) => {
     await session.commitTransaction();
     session.endSession();
 
-    const doctor = await Doctor.findById(appointment.doctorId).select("userId").lean();
-    if (doctor?.userId) {
-      await queueNotification({
-        userId: doctor.userId,
-        type: "APPOINTMENT_CANCELLED_BY_PATIENT",
-        title: "Appointment cancelled",
-        message: `A patient cancelled the appointment for ${appointment.date} at ${appointment.timeSlot}.`,
-        data: {
-          appointmentId: appointment._id,
-          date: appointment.date,
-          timeSlot: appointment.timeSlot,
-        },
-        channels: { socket: true, email: false },
-      });
-    }
+
 
     // Send Email to Doctor
     try {
