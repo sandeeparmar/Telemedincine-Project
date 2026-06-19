@@ -124,26 +124,6 @@ export default function PatientDashboard() {
         <p className="mt-1 text-sm text-slate-500">Book and manage your appointments</p>
       </header>
 
-      {/* ── Real-time Notification Banner ── */}
-      {notification && (
-        <div className="bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl shadow-md p-4 flex items-center gap-4 text-white animate-in slide-in-from-top-4">
-          <div className="bg-white/20 p-2 rounded-full flex-shrink-0">
-            <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-            </svg>
-          </div>
-          <p className="text-sm font-medium flex-1">{notification}</p>
-          <button
-            onClick={() => setNotification(null)}
-            className="p-1 hover:bg-white/20 rounded-full transition"
-          >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-      )}
-
       {/* ── Booking Form Card ── */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
 
