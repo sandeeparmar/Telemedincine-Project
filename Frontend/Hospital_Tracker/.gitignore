@@ -44,3 +44,5 @@ temp/
 # OS files
 desktop.ini
 Thumbs.db
+
+.env.example
