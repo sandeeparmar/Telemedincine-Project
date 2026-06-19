@@ -13,9 +13,8 @@ import chatRoutes from "./routes/chatRoutes.js";
 import doctorRoutes from "./routes/doctorRoutes.js";
 import idmRoutes from "./routes/idmRoutes.js";
 import odmRoutes from "./routes/odmRoutes.js";
-
 dotenv.config(); // used for env file 
-connectDB(); // function call for an database connection 
+connectDB(); 
 
 const app = express();
 
