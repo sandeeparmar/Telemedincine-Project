@@ -46,4 +46,4 @@ temp/
 desktop.ini
 Thumbs.db
 
-.env.example
+.env.production
