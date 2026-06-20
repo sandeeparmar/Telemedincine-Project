@@ -138,7 +138,7 @@ app.use("/api/doctors", doctorRoutes);
 app.use("/api/idm", idmRoutes);
 app.use("/api/odm", odmRoutes);
 
-const port = Number(process.env.PORT) || 5000;
+const port = 5000;
 server
   .listen(port, () => {
     console.log(`Server is running on port ${port}`);
