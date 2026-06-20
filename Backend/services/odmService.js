@@ -16,9 +16,13 @@ export const generateODM = (patient , encounters) => {
        Value : e.diagnosis 
     }) ;
 
+    const medicationString = e.medications && e.medications.length > 0
+      ? e.medications.map(m => `${m.name || ""} (${m.dosage || ""}, ${m.frequency || ""}, ${m.duration || ""})`).join("; ")
+      : "None";
+
     studyEvent.ele("ItemGroupData").ele("ItemData" , {
       Name : "Medication" ,
-      Value  : e.medication
+      Value  : medicationString
     }) ;
   }) ; 
   return odm.end({pretty : true}) ;
