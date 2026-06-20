@@ -25,9 +25,10 @@ export const register = async (req, res) => {
     }
     const hashedPassword = await bcrypt.hash(password, 10);
     role = (role || "PATIENT").toUpperCase();
-    const token = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: "30m" });
-
-    const verificationLink = `http://localhost:5000/api/auth/verify-email/${token}`;
+    const host = req.get("host");
+    const protocol = req.headers["x-forwarded-proto"] || req.protocol;
+    const backendUrl = process.env.BACKEND_URL || `${protocol}://${host}`;
+    const verificationLink = `${backendUrl}/api/auth/verify-email/${token}`;
 
     const subject = "Verify Your Email";
     const text = `Hello ${name}, Please verify your email address to activate your account. Open this link in your browser:${verificationLink}

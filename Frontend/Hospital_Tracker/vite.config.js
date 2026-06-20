@@ -12,6 +12,9 @@ export default defineConfig({
     nodePolyfills(),
   ],
   server: {
+    // Proxy disabled - using GCP backend
+    // Uncomment below if running local backend on port 5000
+    /*
     proxy: {
       "/api": {
         target: "http://127.0.0.1:5000",
@@ -27,6 +30,7 @@ export default defineConfig({
         ws: true,
       },
     },
+    */
   },
   build: {
     outDir: 'dist',
